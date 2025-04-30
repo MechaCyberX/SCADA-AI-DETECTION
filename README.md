@@ -110,5 +110,24 @@ Adding new features
 
 Improving documentation
 
+## 🎁 Bonus: Post-Factum GUI Interface
+To showcase the full potential of the SCADA anomaly detection model, a Streamlit-based post-factum GUI is provided. This interactive interface allows users to explore the model's predictions, visualize results, and test the system with real data.
+
+To get started:
+
+Download the cleaned_file.csv from the cleaned_file.rar archive.
+
+Run the GUI using the following command:
+```
+streamlit run NuclearElectrica.py
+```
+This provides a seamless way to interact with the trained model and see it in action!
+
+### GUI Main Interface 
+![Main Interface](GUI1.png)
+
+### POST FACTUM ANALYSIS
+![Analysis](GUI2.png)
+
 ## 📝 License
 This project is licensed under the MIT License – see the ![LICENSE](LICENSE) file for details.
