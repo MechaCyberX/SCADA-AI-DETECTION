@@ -1,0 +1,16 @@
+# Environment
+venv/
+__pycache__/
+
+# Big data
+*.csv
+*.pcap
+*.h5
+*.dll
+*.pyd
+*.exe
+*.model
+
+# OS/System
+.DS_Store
+Thumbs.db
