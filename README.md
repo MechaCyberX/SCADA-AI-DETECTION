@@ -1,133 +1,107 @@
-## **SCADA AI Detection**
-An advanced AI-based anomaly detection system for SCADA (Supervisory Control and Data Acquisition) infrastructure using LSTM and explainable AI techniques. The dataset used is CICIDS 2017.
+# SCADA AI Detection
 
-## 🔍 **Overview**
-SCADA systems are critical for infrastructure. This project uses a deep learning-based approach (LSTM) to detect anomalies in SCADA time-series data, identifying potential cyber threats and operational failures. The training dataset used is CICIDS 2017, a publicly available dataset for cybersecurity anomaly detection.
+An LSTM that reads network flows and flags the attacks among them, plus a measure of which
+signals it relied on. Trained and tested on CIC-IDS 2017. M.Sc. project, 2025.
 
-## 🧠 **Data Preprocessing & Cleaning**
-The CICIDS 2017 dataset contains network traffic data labeled with attack and normal behavior. Data preprocessing steps included:
+The full story, including what the score does and doesn't prove, is in the write-up:
+**[radutodea.com/work/scada-ai](https://radutodea.com/work/scada-ai/)**
 
-Removing duplicate entries and irrelevant features.
+## Results
 
-Normalizing time-series data to prepare it for LSTM model training.
+On a held-out 20% of the data (216,293 flows the model never saw):
 
-Feature selection to focus on relevant attributes for anomaly detection.
+| Accuracy | Precision | Recall | ROC AUC |
+| --- | --- | --- | --- |
+| 99.3% | 99.2% | 99.5% | 0.9997 |
 
-Handling missing values through imputation or removal.
+| The flow was | Got it wrong | Got it right |
+| --- | --- | --- |
+| Benign (108,246) | 895 false alarms | 107,351 let through |
+| An attack (108,047) | 587 missed | 107,460 caught |
 
-Splitting the dataset into training and test sets, ensuring a balanced distribution of normal and attack data.
+![Confusion matrix](EvaluationLSTM/ConfusionMatrix.png)
+![ROC curve](EvaluationLSTM/ROC_Curve.png)
 
-## 🧠 **Project Structure**
-*A_preprocessing.py*: Preprocess SCADA data (CICIDS 2017 dataset).
+## What the model relies on
 
-*B_train_lstm.py*: Train the LSTM model.
+Permutation importance: shuffle one feature at a time on the test set and measure how much
+accuracy falls. The model leans hardest on what comes back: shuffling the total size of the
+reply packets costs 34 points of accuracy, the number of reply packets 16, the byte rate 13.
+The request side matters least: the total size of what was sent costs just 3. That reads
+sensibly, since floods and scans get small replies, or none.
 
-*C_evaluate_lstm.py*: Evaluate the trained model.
+![Permutation importance](ExplainLSTM/Heatmap.png)
 
-*D_explain_lstm.py*: Use Explainable AI (e.g., SHAP) to explain predictions.
+## How it works
 
-*E_animated_heatmap.py*: Generate animated heatmaps of anomalies.
+| Script | What it does |
+| --- | --- |
+| `A_preprocessing.py` | Loads five CIC-IDS 2017 captures (a benign Monday; DoS; web attacks; DDoS; port scans), keeps 11 of the 79 flow features, drops broken values, clips outliers at the 99th percentile, standardises, and balances attack and benign 50/50. |
+| `B_train_lstm.py` | Two stacked LSTM layers (64 and 32 units) with dropout and one sigmoid output: attack or benign. 80/20 split, 10 epochs. |
+| `C_evaluate_lstm.py` | Confusion matrix, classification report and ROC curve on the held-out 20%. |
+| `D_explain_lstm.py` | Permutation importance (scikit-learn) on the held-out 20%. |
+| `E_animated_heatmap.py` | The same importance, computed over ten slices of the test set, as an animated heatmap. |
+| `dashboard.py` | A Streamlit dashboard that replays a CSV through the trained model. |
 
-## 📦 **Installation**
-Clone the repository:
-```
-git clone https://github.com/raducu28/SCADA-AI-DETECTION.git
+A trained model is included: `models/lstm_scada_model.keras`.
+
+## Run it
+
+Python 3.10 (TensorFlow 2.11 needs 3.7–3.10).
+
+```bash
+git clone https://github.com/MechaCyberX/SCADA-AI-DETECTION.git
 cd SCADA-AI-DETECTION
-```
-
-Create and activate a virtual environment:
-
-**Linux/Mac:**
-```
-python -m venv venv
-source venv/bin/activate
-```
-**Windows:**
-```
-python -m venv venv
-venv\Scripts\activate
-```
-
-**Install dependencies:**
-```
+python -m venv venv && source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## 🚀 **How to Run**
+Download **MachineLearningCSV** from [CIC-IDS 2017](https://www.unb.ca/cic/datasets/ids-2017.html)
+and put these five files in `data/`:
 
-Preprocess Data (CICIDS 2017 dataset):
 ```
-python A_preprocessing.py
-```
-
-Train LSTM Model:
-```
-python B_train_lstm.py
+Monday-WorkingHours.pcap_ISCX.csv
+Wednesday-workingHours.pcap_ISCX.csv
+Thursday-WorkingHours-Morning-WebAttacks.pcap_ISCX.csv
+Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv
+Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv
 ```
 
-Evaluate Model:
-```
+Then:
+
+```bash
+python A_preprocessing.py     # → data/processed_data.csv
+python B_train_lstm.py        # → models/lstm_scada_model.keras
 python C_evaluate_lstm.py
-```
-
-Explain Predictions:
-```
 python D_explain_lstm.py
+python E_animated_heatmap.py  # → animated_heatmap.gif
 ```
 
-Visualize Results with Heatmap:
-```
-python E_animated_heatmap.py
-```
+Dashboard: extract `cleaned_file.rar`, run `streamlit run dashboard.py`, and upload
+`cleaned_file.csv`. The model is binary; the dashboard's attack-type breakdown and
+live-traffic panels are illustrative, not model output.
 
-## 📋 **Additional Information**
-Requirements:
+## What the score doesn't say
 
-Python 3.x
+- **Balanced data flatters.** The test set is half attacks; real networks are nearly all benign.
+  At one attack in a thousand flows, the same 0.83% false-alarm rate means about eight false
+  alarms for every real attack caught.
+- **Random splits are generous.** Near-identical flows from the same attack sit on both sides
+  of the split, and each attack type comes from its own capture day.
+- **Scaling happens before the split,** so the test data shaped the preprocessing.
+- **One flow at a time.** Each flow is a sequence of length one, so the LSTM works as a
+  per-flow classifier. Windows of consecutive flows per host are where it would earn its place.
+- **IT traffic isn't ICS traffic.** CIC-IDS 2017 is enterprise traffic: the attacks that hit
+  the perimeter around a control system, not Modbus or DNP3 inside it.
 
-TensorFlow
+The write-up covers each of these, and what the next version changes.
 
-SHAP
+## Data
 
-Other dependencies listed in requirements.txt
+CIC-IDS 2017, Canadian Institute for Cybersecurity, University of New Brunswick.
+Sharafaldin, Lashkari and Ghorbani, *Toward Generating a New Intrusion Detection Dataset and
+Intrusion Traffic Characterization*, ICISSP 2018.
 
-Usage Example: The A_preprocessing.py script loads and preprocesses data from the CICIDS 2017 dataset, which includes various types of cyber-attacks and normal traffic data. Afterward, B_train_lstm.py trains the LSTM model on the preprocessed data. The C_evaluate_lstm.py script evaluates the model's performance. Use D_explain_lstm.py for explainability via SHAP, and finally, visualize anomaly detection results with E_animated_heatmap.py.
+## License
 
-### 📊 Evaluation Results
-
-#### Confusion Matrix
-![Confusion Matrix](EvaluationLSTM/ConfusionMatrix.png)
-
-#### ROC Curve
-![ROC Curve](EvaluationLSTM/ROC_Curve.png)
-
-## 🤝 Contributing
-We welcome contributions! If you'd like to improve this project, please fork the repository and create a pull request. Here are a few ways you can contribute:
-
-Reporting bugs
-
-Adding new features
-
-Improving documentation
-
-## 🎁 Bonus: Post-Factum GUI Interface
-To showcase the full potential of the SCADA anomaly detection model, a Streamlit-based post-factum GUI is provided. This interactive interface allows users to explore the model's predictions, visualize results, and test the system with real data.
-
-To get started:
-
-Download the cleaned_file.csv from the cleaned_file.rar archive.
-
-Run the GUI using the following command:
-```
-streamlit run NuclearElectrica.py
-```
-This provides a seamless way to interact with the trained model and see it in action!
-
-### GUI Main Interface 
-![Main Interface](GUI1.png)
-
-### POST FACTUM ANALYSIS
-![Analysis](GUI2.png)
-
-## 📝 License
-This project is licensed under the MIT License – see the ![LICENSE](LICENSE) file for details.
+MIT. See [LICENSE](LICENSE).
