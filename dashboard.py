@@ -13,13 +13,13 @@ from sklearn.model_selection import train_test_split
 # 🌟 Page Configuration & Styling
 # ----------------------------------------------
 st.set_page_config(
-    page_title="NuclearElectrica Threat Detection Dashboard",
+    page_title="SCADA Threat Detection Dashboard",
     layout="wide"
 )
 
 st.markdown(
     """
-    <h1 style='text-align: center; color: red;'>🚀 Welcome to NuclearElectrica Threat Detection Dashboard</h1>
+    <h1 style='text-align: center; color: red;'>SCADA Threat Detection Dashboard</h1>
     <h4 style='text-align: center;'>AI-Powered SCADA Cybersecurity System</h4>
     <hr>
     """,
